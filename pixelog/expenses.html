@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pixilog — expenses</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2a1220">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="pixilog">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg-deep: #2a1220; --bg-panel: #35182a; --bg-panel-2: #401d33;
+    --lilac: #b57aa9; --lilac-soft: #dcb3d3; --mint: #f2c9d9; --mint-soft: #f9e3ec;
+    --butter: #ef4f68; --butter-soft: #f7a3b0; --chrome: #f3e6ee; --chrome-dim: #b98fac;
+    --cloud: #f8eef4; --ink: #2a1220; --line: rgba(243,230,238,0.16);
+    --tint-rgb: 243,230,238; --dock-glass-rgb: 42,18,32;
+    --glow-1: rgba(181,122,169,0.22); --glow-2: rgba(239,79,104,0.16);
+  }
+  [data-theme="light"]{
+    --bg-deep: #fbf3f7; --bg-panel: #ffffff; --bg-panel-2: #f7e9f1;
+    --lilac: #9a5c8e; --lilac-soft: #e6cee0; --mint: #c9788f; --mint-soft: #f3d9e2;
+    --butter: #a30e2b; --butter-soft: #f0c3cb; --chrome: #4a2a40; --chrome-dim: #8a6b80;
+    --cloud: #2a1220; --ink: #2a1220; --line: rgba(74,42,64,0.12);
+    --tint-rgb: 74,42,64; --dock-glass-rgb: 255,255,255;
+    --glow-1: rgba(154,92,142,0.12); --glow-2: rgba(163,14,43,0.08);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background: radial-gradient(ellipse 900px 500px at 12% -10%, var(--glow-1), transparent 60%),
+                radial-gradient(ellipse 700px 500px at 100% 0%, var(--glow-2), transparent 55%), var(--bg-deep);
+    color: var(--cloud); font-family:'Space Grotesk', sans-serif; min-height:100vh; padding-bottom:60px;
+  }
+  h1,h2,h3{ font-family:'Fredoka', sans-serif; font-weight:600; }
+  .dock{ display:flex; align-items:center; justify-content:space-between; padding:18px 28px;
+    border-bottom:1px solid var(--line); position:sticky; top:0;
+    background:rgba(var(--dock-glass-rgb),0.6); backdrop-filter:blur(6px); z-index:20; }
+  .brand{ display:flex; align-items:center; gap:10px; text-decoration:none; }
+  .brand-mark{ width:34px; height:34px; border-radius:10px; overflow:hidden; }
+  .brand-mark img{ width:100%; height:100%; object-fit:cover; }
+  .brand-name{ font-family:'Fredoka',sans-serif; font-size:1.15rem; color:var(--cloud); }
+  .brand-name .dot{ color: var(--mint); }
+  .back-link{ color:var(--chrome-dim); font-size:0.85rem; text-decoration:none; }
+  .theme-toggle{ all:unset; cursor:pointer; width:44px; height:26px; border-radius:999px;
+    background: rgba(var(--tint-rgb),0.08); border:1px solid var(--line); position:relative; }
+  .theme-toggle .knob{ position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+    background:linear-gradient(135deg,var(--lilac),var(--mint)); display:flex; align-items:center; justify-content:center;
+    font-size:0.7rem; transition:transform .25s ease; }
+  [data-theme="light"] .theme-toggle .knob{ transform:translateX(18px); }
+  .wrap{ max-width:640px; margin:0 auto; padding:36px 24px 0; }
+  .card{ background: linear-gradient(165deg, var(--bg-panel-2), var(--bg-panel)); border:1px solid var(--line);
+    border-radius:24px; padding:24px; margin-bottom:20px; }
+  .card h3{ font-size:1.05rem; margin-bottom:16px; }
+  .field{ margin-bottom:14px; }
+  label.field-label{ display:block; font-size:0.78rem; color:var(--chrome-dim); margin-bottom:6px; }
+  .text-input{ width:100%; padding:12px 16px; border-radius:14px; border:1px solid var(--line);
+    background:var(--bg-panel); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.9rem; outline:none; }
+  .row-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .btn-primary{ width:100%; padding:14px; border:none; border-radius:999px; cursor:pointer;
+    background:linear-gradient(135deg,var(--butter),var(--butter-soft)); color:var(--ink);
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:0.95rem; margin-top:6px; }
+  .save-status{ text-align:center; font-size:0.78rem; color:var(--chrome-dim); margin-top:10px; min-height:1em; }
+  .stat-row{ display:flex; justify-content:space-between; margin-bottom:10px; }
+  .stat-row b{ font-family:'Fredoka',sans-serif; font-size:1.3rem; }
+  .stat-row span{ color:var(--chrome-dim); font-size:0.8rem; }
+  .history-item{ display:flex; align-items:center; justify-content:space-between; padding:12px 0;
+    border-bottom:1px dashed var(--line); font-size:0.86rem; }
+  .history-item:last-child{ border-bottom:none; }
+  .history-item .date{ color:var(--chrome-dim); font-size:0.76rem; }
+  .del-btn{ all:unset; cursor:pointer; color:var(--chrome-dim); font-size:1rem; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; flex-shrink:0; }
+  .del-btn:hover{ background:rgba(var(--tint-rgb),0.1); color:var(--butter); }
+  .empty-note{ color:var(--chrome-dim); font-size:0.85rem; text-align:center; padding:12px 0; }
+</style>
+</head>
+<body>
+  <header class="dock">
+    <a href="index.html" class="brand">
+      <div class="brand-mark"><img src="icons/icon-192.png" alt="pixilog"></div>
+      <div class="brand-name">pixe<span class="dot">log</span></div>
+    </a>
+    <a href="index.html" class="back-link">← back home</a>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"><span class="knob">🌙</span></button>
+  </header>
+
+  <main class="wrap">
+    <h2 style="margin:24px 0;">expense tracker</h2>
+
+    <div class="card">
+      <div class="stat-row"><div><b id="todayTotal">RM 0.00</b><br><span>spent today</span></div>
+        <div style="text-align:right;"><b id="monthTotal">RM 0.00</b><br><span>spent this month</span></div></div>
+    </div>
+
+    <div class="card">
+      <h3>add an expense</h3>
+      <div class="row-2">
+        <div class="field">
+          <label class="field-label">amount (RM)</label>
+          <input type="number" class="text-input" id="amountInput" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label class="field-label">category</label>
+          <select class="text-input" id="categoryInput">
+            <option value="drinks">🧋 drinks</option>
+            <option value="food">🍜 food</option>
+            <option value="transport">🚌 transport</option>
+            <option value="other">✦ other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">note (optional)</label>
+        <input type="text" class="text-input" id="noteInput" placeholder="what was it for?">
+      </div>
+      <button class="btn-primary" id="addBtn">add expense</button>
+      <p class="save-status" id="saveStatus"></p>
+    </div>
+
+    <div class="card">
+      <h3>recent expenses</h3>
+      <div id="historyList"><p class="empty-note">loading...</p></div>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = "https://pyxmuzudgzfvvkbipjln.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eG11enVkZ3pmdnZrYmlwamxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3MzgyNDEsImV4cCI6MjEwNDMxNDI0MX0.Ki5MdbzAIxbgXizf1Ao-73Q5FIGfNegPfkQmHwxmbF4";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUserId = null;
+    const categoryIcons = { drinks: '🧋', food: '🍜', transport: '🚌', other: '✦' };
+    const historyList = document.getElementById('historyList');
+    const saveStatus = document.getElementById('saveStatus');
+
+    async function loadStats() {
+      const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+      const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
+
+      const { data: todayData } = await sb.from('expense_entries').select('amount').eq('user_id', currentUserId).gte('logged_at', startOfDay.toISOString());
+      const { data: monthData } = await sb.from('expense_entries').select('amount').eq('user_id', currentUserId).gte('logged_at', startOfMonth.toISOString());
+
+      const todayTotal = (todayData || []).reduce((s, e) => s + Number(e.amount), 0);
+      const monthTotal = (monthData || []).reduce((s, e) => s + Number(e.amount), 0);
+      document.getElementById('todayTotal').textContent = `RM ${todayTotal.toFixed(2)}`;
+      document.getElementById('monthTotal').textContent = `RM ${monthTotal.toFixed(2)}`;
+    }
+
+    async function loadHistory() {
+      const { data } = await sb.from('expense_entries').select('*').eq('user_id', currentUserId)
+        .order('logged_at', { ascending: false }).limit(30);
+      if (!data || !data.length) { historyList.innerHTML = '<p class="empty-note">no expenses yet — add your first one above</p>'; return; }
+      historyList.innerHTML = data.map(e => {
+        const date = new Date(e.logged_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return `<div class="history-item" data-id="${e.id}">
+          <div>${categoryIcons[e.category] || '✦'} ${e.note || e.category} <span class="date">· ${date}</span></div>
+          <div style="display:flex; align-items:center; gap:10px;"><b>RM ${Number(e.amount).toFixed(2)}</b><button class="del-btn" data-id="${e.id}">✕</button></div>
+        </div>`;
+      }).join('');
+    }
+
+    document.getElementById('addBtn').addEventListener('click', async () => {
+      const amount = parseFloat(document.getElementById('amountInput').value);
+      if (!amount || amount <= 0) { saveStatus.textContent = 'enter a valid amount first'; return; }
+      saveStatus.textContent = 'saving...';
+      const { error } = await sb.from('expense_entries').insert({
+        user_id: currentUserId,
+        amount,
+        category: document.getElementById('categoryInput').value,
+        note: document.getElementById('noteInput').value.trim() || null
+      });
+      saveStatus.textContent = error ? error.message : 'added ✨';
+      document.getElementById('amountInput').value = '';
+      document.getElementById('noteInput').value = '';
+      loadStats(); loadHistory();
+    });
+
+    historyList.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.del-btn');
+      if (!btn || btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = '…';
+      const row = btn.closest('.history-item');
+      const { error } = await sb.from('expense_entries').delete().eq('id', btn.dataset.id);
+      if (error) {
+        saveStatus.textContent = error.message;
+        btn.disabled = false;
+        btn.textContent = '✕';
+        return;
+      }
+      if (row) row.remove();
+      loadStats();
+    });
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      currentUserId = session.user.id;
+      await loadStats();
+      await loadHistory();
+    }
+    init();
+
+    const themeToggle = document.getElementById('themeToggle');
+    const themeKnob = themeToggle.querySelector('.knob');
+    const savedTheme = localStorage.getItem('pixilog-theme');
+    if (savedTheme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); themeKnob.textContent = '☀️'; }
+    themeToggle.addEventListener('click', () => {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      if (isLight) { document.documentElement.removeAttribute('data-theme'); themeKnob.textContent = '🌙'; localStorage.setItem('pixilog-theme','dark'); }
+      else { document.documentElement.setAttribute('data-theme', 'light'); themeKnob.textContent = '☀️'; localStorage.setItem('pixilog-theme','light'); }
+    });
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  </script>
+</body>
+</html>
