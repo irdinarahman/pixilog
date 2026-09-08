@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pixilog — habits</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2a1220">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="pixilog">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg-deep: #2a1220; --bg-panel: #35182a; --bg-panel-2: #401d33;
+    --lilac: #b57aa9; --lilac-soft: #dcb3d3; --mint: #f2c9d9; --mint-soft: #f9e3ec;
+    --butter: #ef4f68; --butter-soft: #f7a3b0; --chrome: #f3e6ee; --chrome-dim: #b98fac;
+    --cloud: #f8eef4; --ink: #2a1220; --line: rgba(243,230,238,0.16);
+    --tint-rgb: 243,230,238; --dock-glass-rgb: 42,18,32;
+    --glow-1: rgba(181,122,169,0.22); --glow-2: rgba(239,79,104,0.16);
+  }
+  [data-theme="light"]{
+    --bg-deep: #fbf3f7; --bg-panel: #ffffff; --bg-panel-2: #f7e9f1;
+    --lilac: #9a5c8e; --lilac-soft: #e6cee0; --mint: #c9788f; --mint-soft: #f3d9e2;
+    --butter: #a30e2b; --butter-soft: #f0c3cb; --chrome: #4a2a40; --chrome-dim: #8a6b80;
+    --cloud: #2a1220; --ink: #2a1220; --line: rgba(74,42,64,0.12);
+    --tint-rgb: 74,42,64; --dock-glass-rgb: 255,255,255;
+    --glow-1: rgba(154,92,142,0.12); --glow-2: rgba(163,14,43,0.08);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background: radial-gradient(ellipse 900px 500px at 12% -10%, var(--glow-1), transparent 60%),
+                radial-gradient(ellipse 700px 500px at 100% 0%, var(--glow-2), transparent 55%), var(--bg-deep);
+    color: var(--cloud); font-family:'Space Grotesk', sans-serif; min-height:100vh; padding-bottom:60px;
+  }
+  h1,h2,h3{ font-family:'Fredoka', sans-serif; font-weight:600; }
+  .dock{ display:flex; align-items:center; justify-content:space-between; padding:18px 28px;
+    border-bottom:1px solid var(--line); position:sticky; top:0;
+    background:rgba(var(--dock-glass-rgb),0.6); backdrop-filter:blur(6px); z-index:20; }
+  .brand{ display:flex; align-items:center; gap:10px; text-decoration:none; }
+  .brand-mark{ width:34px; height:34px; border-radius:10px; overflow:hidden; }
+  .brand-mark img{ width:100%; height:100%; object-fit:cover; }
+  .brand-name{ font-family:'Fredoka',sans-serif; font-size:1.15rem; color:var(--cloud); }
+  .brand-name .dot{ color: var(--mint); }
+  .back-link{ color:var(--chrome-dim); font-size:0.85rem; text-decoration:none; }
+  .theme-toggle{ all:unset; cursor:pointer; width:44px; height:26px; border-radius:999px;
+    background: rgba(var(--tint-rgb),0.08); border:1px solid var(--line); position:relative; }
+  .theme-toggle .knob{ position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+    background:linear-gradient(135deg,var(--lilac),var(--mint)); display:flex; align-items:center; justify-content:center;
+    font-size:0.7rem; transition:transform .25s ease; }
+  [data-theme="light"] .theme-toggle .knob{ transform:translateX(18px); }
+  .wrap{ max-width:640px; margin:0 auto; padding:36px 24px 0; }
+  .card{ background: linear-gradient(165deg, var(--bg-panel-2), var(--bg-panel)); border:1px solid var(--line);
+    border-radius:24px; padding:22px; margin-bottom:16px; }
+  .habit-row-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .habit-row-top h3{ font-size:1rem; }
+  .today-toggle{ all:unset; cursor:pointer; width:32px; height:32px; border-radius:10px;
+    border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:0.9rem; }
+  .today-toggle.done{ background:linear-gradient(135deg,var(--mint),var(--lilac)); border-color:transparent; }
+  .day-grid{ display:flex; gap:8px; }
+  .day-cell{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .day-cell .label{ font-size:0.68rem; color:var(--chrome-dim); }
+  .day-cell .dot{ width:22px; height:22px; border-radius:50%; background:rgba(var(--tint-rgb),0.08); }
+  .day-cell .dot.done{ background:linear-gradient(135deg,var(--mint),var(--lilac)); }
+  .empty-note{ color:var(--chrome-dim); font-size:0.85rem; text-align:center; padding:12px 0; }
+</style>
+</head>
+<body>
+  <header class="dock">
+    <a href="index.html" class="brand">
+      <div class="brand-mark"><img src="icons/icon-192.png" alt="pixilog"></div>
+      <div class="brand-name">pixi<span class="dot">log</span></div>
+    </a>
+    <a href="index.html" class="back-link">← back home</a>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme"><span class="knob">🌙</span></button>
+  </header>
+
+  <main class="wrap">
+    <h2 style="margin:24px 0;">habit tracker</h2>
+    <div id="habitCards"><p class="empty-note">loading...</p></div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = "https://pyxmuzudgzfvvkbipjln.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eG11enVkZ3pmdnZrYmlwamxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3MzgyNDEsImV4cCI6MjEwNDMxNDI0MX0.Ki5MdbzAIxbgXizf1Ao-73Q5FIGfNegPfkQmHwxmbF4";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUserId = null;
+    const habits = [
+      { key: 'water', label: 'drink 2L water', icon: '💧' },
+      { key: 'stretch', label: '10 min stretch', icon: '🧘' },
+      { key: 'read', label: 'read 10 pages', icon: '📖' },
+      { key: 'scroll', label: 'no late night scrolling', icon: '🌙' },
+    ];
+
+    function lastNDays(n) {
+      const days = [];
+      for (let i = n - 1; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        days.push(d.toISOString().slice(0, 10));
+      }
+      return days;
+    }
+    const days = lastNDays(7);
+    const dayLabels = days.map(d => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2).toLowerCase());
+    const today = days[days.length - 1];
+
+    async function loadAndRender() {
+      const { data } = await sb.from('habit_logs').select('habit_key, logged_date, done')
+        .eq('user_id', currentUserId).in('logged_date', days);
+      const logMap = {};
+      (data || []).forEach(l => { logMap[`${l.habit_key}_${l.logged_date}`] = l.done; });
+
+      const container = document.getElementById('habitCards');
+      container.innerHTML = habits.map(h => {
+        const todayDone = !!logMap[`${h.key}_${today}`];
+        const dayCells = days.map((d, i) => {
+          const done = !!logMap[`${h.key}_${d}`];
+          return `<div class="day-cell"><span class="label">${dayLabels[i]}</span><div class="dot ${done ? 'done' : ''}"></div></div>`;
+        }).join('');
+        return `<div class="card" data-habit-key="${h.key}">
+          <div class="habit-row-top">
+            <h3>${h.icon} ${h.label}</h3>
+            <button class="today-toggle ${todayDone ? 'done' : ''}" data-key="${h.key}">${todayDone ? '✓' : ''}</button>
+          </div>
+          <div class="day-grid">${dayCells}</div>
+        </div>`;
+      }).join('');
+    }
+
+    document.getElementById('habitCards').addEventListener('click', async (e) => {
+      const btn = e.target.closest('.today-toggle');
+      if (!btn) return;
+      const nowDone = !btn.classList.contains('done');
+      await sb.from('habit_logs').upsert({
+        user_id: currentUserId, habit_key: btn.dataset.key, logged_date: today, done: nowDone
+      }, { onConflict: 'user_id,habit_key,logged_date' });
+      loadAndRender();
+    });
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      currentUserId = session.user.id;
+      await loadAndRender();
+    }
+    init();
+
+    const themeToggle = document.getElementById('themeToggle');
+    const themeKnob = themeToggle.querySelector('.knob');
+    const savedTheme = localStorage.getItem('pixilog-theme');
+    if (savedTheme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); themeKnob.textContent = '☀️'; }
+    themeToggle.addEventListener('click', () => {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      if (isLight) { document.documentElement.removeAttribute('data-theme'); themeKnob.textContent = '🌙'; localStorage.setItem('pixilog-theme','dark'); }
+      else { document.documentElement.setAttribute('data-theme', 'light'); themeKnob.textContent = '☀️'; localStorage.setItem('pixilog-theme','light'); }
+    });
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  </script>
+</body>
+</html>
