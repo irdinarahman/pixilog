@@ -155,6 +155,16 @@
     background:transparent; color:var(--danger); font-family:'Space Grotesk',sans-serif; font-size:0.88rem;
   }
   .save-status{ text-align:center; font-size:0.78rem; color:var(--chrome-dim); margin-top:10px; min-height:1em; }
+  .mobile-dock{ display:none; }
+  @media (max-width:720px){
+    .mobile-dock{ display:flex; justify-content:space-around; align-items:center; position:fixed;
+      bottom:14px; left:16px; right:16px; background:rgba(var(--dock-glass-rgb),0.85); backdrop-filter:blur(10px);
+      border:1px solid var(--line); border-radius:999px; padding:10px 14px; z-index:30; }
+    .mobile-dock a{ color:var(--chrome-dim); text-decoration:none; display:flex; flex-direction:column;
+      align-items:center; gap:3px; font-size:0.62rem; }
+    .mobile-dock a.active{ color:var(--cloud); }
+    .mobile-dock svg{ width:18px; height:18px; }
+  }
 </style>
 </head>
 <body>
@@ -175,6 +185,14 @@
       <span class="knob">🌙</span>
     </button>
   </header>
+
+  <nav class="mobile-dock">
+    <a href="index.html"><svg viewBox="0 0 24 24" fill="none"><path d="M4 11L12 4L20 11V20H4V11Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>home</span></a>
+    <a href="mood.html"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/></svg><span>mood</span></a>
+    <a href="expenses.html"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/></svg><span>spend</span></a>
+    <a href="habits.html"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12L9 17L20 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>habits</span></a>
+    <a href="sleep.html"><svg viewBox="0 0 24 24" fill="none"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.3 6.3 0 0 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.6"/></svg><span>sleep</span></a>
+  </nav>
 
   <main class="wrap">
     <h2 style="margin-bottom:24px;">your profile</h2>
@@ -356,10 +374,12 @@
 
     const themeToggle = document.getElementById('themeToggle');
     const themeKnob = themeToggle.querySelector('.knob');
+    const savedTheme = localStorage.getItem('pixilog-theme');
+    if (savedTheme === 'light') { document.documentElement.setAttribute('data-theme', 'light'); themeKnob.textContent = '☀️'; }
     themeToggle.addEventListener('click', ()=>{
       const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-      if(isLight){ document.documentElement.removeAttribute('data-theme'); themeKnob.textContent='🌙'; }
-      else{ document.documentElement.setAttribute('data-theme','light'); themeKnob.textContent='☀️'; }
+      if(isLight){ document.documentElement.removeAttribute('data-theme'); themeKnob.textContent='🌙'; localStorage.setItem('pixilog-theme','dark'); }
+      else{ document.documentElement.setAttribute('data-theme','light'); themeKnob.textContent='☀️'; localStorage.setItem('pixilog-theme','light'); }
     });
 
     loadProfile();
