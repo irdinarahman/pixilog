@@ -153,6 +153,8 @@
     border-radius: 50%;
     background: linear-gradient(135deg, var(--butter), var(--lilac));
     border: 2px solid rgba(var(--tint-rgb),0.55);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; text-decoration: none;
   }
 
   .header-actions{
@@ -603,7 +605,7 @@
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle light and dark mode">
         <span class="knob">🌙</span>
       </button>
-      <a href="profile.html" class="avatar" style="display:block;"></a>
+      <a href="profile.html" class="avatar" id="headerAvatar" style="display:flex;"></a>
     </div>
   </header>
 
@@ -629,10 +631,12 @@
         <div class="halo"></div>
         <svg class="mascot" viewBox="0 0 200 200" fill="none">
           <ellipse cx="100" cy="112" rx="70" ry="62" fill="url(#g1)"/>
-          <ellipse cx="72" cy="105" rx="9" ry="12" fill="#2a1220"/>
-          <ellipse cx="128" cy="105" rx="9" ry="12" fill="#2a1220"/>
-          <circle cx="75" cy="108" r="2.4" fill="#fff"/>
-          <circle cx="131" cy="108" r="2.4" fill="#fff"/>
+          <g id="mascotEyes">
+            <ellipse cx="72" cy="105" rx="9" ry="12" fill="#2a1220"/>
+            <ellipse cx="128" cy="105" rx="9" ry="12" fill="#2a1220"/>
+            <circle cx="75" cy="108" r="2.4" fill="#fff"/>
+            <circle cx="131" cy="108" r="2.4" fill="#fff"/>
+          </g>
           <path id="mascotMouth" d="M85 130Q100 142 115 130" stroke="#2a1220" stroke-width="4" stroke-linecap="round" fill="none"/>
           <ellipse cx="58" cy="122" rx="8" ry="5" fill="#ef4f68" opacity="0.55"/>
           <ellipse cx="142" cy="122" rx="8" ry="5" fill="#ef4f68" opacity="0.55"/>
@@ -820,6 +824,11 @@
       authStatus.textContent = error ? error.message : 'check your email for the login link!';
     });
 
+    async function loadHeaderAvatar(userId) {
+      const { data } = await sb.from('profiles').select('avatar_emoji').eq('id', userId).single();
+      document.getElementById('headerAvatar').textContent = (data && data.avatar_emoji) || '🌙';
+    }
+
     sb.auth.onAuthStateChange((_event, session) => {
       authGate.style.display = session ? 'none' : 'flex';
       if (session) {
@@ -827,6 +836,7 @@
         loadTodaySleep(session.user.id);
         loadTodayExpenses(session.user.id);
         loadTodayHabits(session.user.id);
+        loadHeaderAvatar(session.user.id);
       }
     });
 
@@ -837,6 +847,7 @@
         loadTodaySleep(session.user.id);
         loadTodayExpenses(session.user.id);
         loadTodayHabits(session.user.id);
+        loadHeaderAvatar(session.user.id);
       }
     });
 
@@ -859,9 +870,24 @@
       4: 'M83 128Q100 146 117 128',    // good — bigger smile
       5: 'M80 125Q100 152 120 125',    // amazing — biggest smile
     };
+    const mascotEyeVariants = {
+      1: `<ellipse cx="72" cy="110" rx="7" ry="9" fill="#2a1220"/><ellipse cx="128" cy="110" rx="7" ry="9" fill="#2a1220"/>
+          <path d="M60 96Q72 90 82 96" stroke="#2a1220" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.5"/>
+          <path d="M118 96Q128 90 140 96" stroke="#2a1220" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.5"/>`,
+      2: `<path d="M64 105L82 105" stroke="#2a1220" stroke-width="4" stroke-linecap="round"/>
+          <path d="M118 105L136 105" stroke="#2a1220" stroke-width="4" stroke-linecap="round"/>`,
+      3: `<ellipse cx="72" cy="105" rx="9" ry="12" fill="#2a1220"/><ellipse cx="128" cy="105" rx="9" ry="12" fill="#2a1220"/>
+          <circle cx="75" cy="108" r="2.4" fill="#fff"/><circle cx="131" cy="108" r="2.4" fill="#fff"/>`,
+      4: `<path d="M62 108Q72 92 82 108" stroke="#2a1220" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+          <path d="M118 108Q128 92 138 108" stroke="#2a1220" stroke-width="4.5" stroke-linecap="round" fill="none"/>`,
+      5: `<path d="M72 95L75 103L83 105L75 107L72 115L69 107L61 105L69 103Z" fill="#2a1220"/>
+          <path d="M128 95L131 103L139 105L131 107L128 115L125 107L117 105L125 103Z" fill="#2a1220"/>`,
+    };
     function renderMascotMood(score) {
       const mouth = document.getElementById('mascotMouth');
       if (mouth) mouth.setAttribute('d', mascotMouthPaths[score] || mascotMouthPaths[3]);
+      const eyes = document.getElementById('mascotEyes');
+      if (eyes) eyes.innerHTML = mascotEyeVariants[score] || mascotEyeVariants[3];
     }
 
     async function loadTodayMood(userId) {

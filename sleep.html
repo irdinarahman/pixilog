@@ -63,12 +63,12 @@
   .card{ background: linear-gradient(165deg, var(--bg-panel-2), var(--bg-panel)); border:1px solid var(--line);
     border-radius:24px; padding:24px; margin-bottom:20px; }
   .card h3{ font-size:1.05rem; margin-bottom:16px; }
-  .field{ margin-bottom:14px; }
+  .field{ margin-bottom:14px; min-width:0; }
   label.field-label{ display:block; font-size:0.78rem; color:var(--chrome-dim); margin-bottom:6px; }
-  .text-input{ width:100%; padding:12px 16px; border-radius:14px; border:1px solid var(--line);
-    background:var(--bg-panel); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.9rem; outline:none; box-sizing:border-box; }
+  .text-input{ width:100%; max-width:100%; padding:12px 16px; border-radius:14px; border:1px solid var(--line);
+    background:var(--bg-panel); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.9rem; outline:none; box-sizing:border-box; min-width:0; }
   select.text-input{ -webkit-appearance:none; appearance:none; height:46px; padding:0 16px; }
-  .row-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .row-2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
   .btn-primary{ width:100%; padding:14px; border:none; border-radius:999px; cursor:pointer;
     background:linear-gradient(135deg,var(--lilac),var(--mint)); color:var(--ink);
     font-family:'Fredoka',sans-serif; font-weight:600; font-size:0.95rem; margin-top:6px; }
