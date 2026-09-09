@@ -225,9 +225,9 @@
     display:inline-flex;
     align-items:center;
     gap:8px;
-    background: rgba(174,235,209,0.14);
-    border: 1px solid rgba(174,235,209,0.35);
-    color: var(--mint-soft);
+    background: rgba(var(--tint-rgb),0.08);
+    border: 1px solid var(--line);
+    color: var(--chrome-dim);
     padding: 6px 14px;
     border-radius: 999px;
     font-size: 0.8rem;
@@ -236,7 +236,7 @@
   .hero-eyebrow .pulse{
     width:7px; height:7px; border-radius:50%;
     background: var(--mint);
-    box-shadow: 0 0 0 3px rgba(174,235,209,0.25);
+    box-shadow: 0 0 0 3px rgba(var(--tint-rgb),0.15);
   }
 
   .hero h1{
@@ -589,7 +589,7 @@
       <div class="brand-mark">
         <img src="icons/icon-192.png" alt="pixilog logo" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
       </div>
-      <div class="brand-name">pixe<span class="dot">log</span></div>
+      <div class="brand-name">pixi<span class="dot">log</span></div>
     </div>
     <nav class="dock-nav">
       <a href="index.html" class="active" data-i18n="nav_home">home</a>
@@ -788,16 +788,6 @@
         <div class="streak-line">⭐ <span id="habitStreakLine">0 of 0 done today</span></div>
       </div>
 
-    </div>
-
-    <div class="timeline-card">
-      <div class="day-pip"><span class="label">mon</span><div class="dot">–</div></div>
-      <div class="day-pip"><span class="label">tue</span><div class="dot">–</div></div>
-      <div class="day-pip"><span class="label">wed</span><div class="dot">–</div></div>
-      <div class="day-pip"><span class="label">thu</span><div class="dot">–</div></div>
-      <div class="day-pip"><span class="label">fri</span><div class="dot">–</div></div>
-      <div class="day-pip today"><span class="label">sat</span><div class="dot">–</div></div>
-      <div class="day-pip"><span class="label">sun</span><div class="dot">–</div></div>
     </div>
 
   </main>

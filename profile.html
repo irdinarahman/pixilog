@@ -85,6 +85,12 @@
   .brand-name{ font-family:'Fredoka',sans-serif; font-size:1.15rem; color:var(--cloud); }
   .brand-name .dot{ color: var(--mint); }
 
+  .dock-nav{ display:flex; gap:6px; background: rgba(var(--tint-rgb),0.04); padding:5px; border-radius:999px; border:1px solid var(--line); }
+  .dock-nav a{ text-decoration:none; color:var(--chrome-dim); font-size:0.85rem; padding:8px 16px; border-radius:999px; transition:color .2s ease, background .2s ease; }
+  .dock-nav a.active{ background:var(--pill-bg); color:var(--pill-text); font-weight:600; }
+  .dock-nav a:not(.active):hover{ color:var(--cloud); }
+  @media (max-width:720px){ .dock-nav{ display:none; } }
+
   .theme-toggle{
     all:unset; cursor:pointer; width:44px; height:26px; border-radius:999px;
     background: rgba(var(--tint-rgb),0.08); border:1px solid var(--line); position:relative;
@@ -158,6 +164,13 @@
       <div class="brand-mark"><img src="icons/icon-192.png" alt="pixilog"></div>
       <div class="brand-name">pixi<span class="dot">log</span></div>
     </a>
+    <nav class="dock-nav">
+      <a href="index.html">home</a>
+      <a href="mood.html">mood</a>
+      <a href="expenses.html">expenses</a>
+      <a href="habits.html">habits</a>
+      <a href="sleep.html">sleep</a>
+    </nav>
     <button class="theme-toggle" id="themeToggle" aria-label="Toggle light and dark mode">
       <span class="knob">🌙</span>
     </button>
