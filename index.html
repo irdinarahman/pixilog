@@ -679,7 +679,11 @@
         </div>
         <p class="mood-note" data-i18n="mood_note_demo">no mood logged yet today</p>
         <input type="text" id="songTag" placeholder="🎵 song stuck in your head?" style="width:100%; margin-top:10px; padding:9px 14px; border-radius:999px; border:1px solid var(--line); background:rgba(var(--tint-rgb),0.06); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.8rem; outline:none; box-sizing:border-box;">
-        <div class="mood-strip">
+        <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+          <button id="logMoodBtn" style="padding:9px 18px; border:none; border-radius:12px; background:linear-gradient(135deg,var(--lilac),var(--mint)); color:var(--ink); font-weight:600; font-size:0.8rem; cursor:pointer; font-family:'Fredoka',sans-serif;">log mood</button>
+          <span id="moodSaveStatus" style="font-size:0.76rem; color:var(--chrome-dim);"></span>
+        </div>
+        <div class="mood-strip" id="moodStrip">
           <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
         </div>
       </div>
@@ -779,12 +783,9 @@
           <div class="more-dots">⋯</div>
         </a>
         <div class="habit-list" id="habitList">
-          <div class="habit-item" data-habit-key="water"><div class="habit-check">&nbsp;</div><span data-i18n="habit_water">drink 2L water</span></div>
-          <div class="habit-item" data-habit-key="stretch"><div class="habit-check">&nbsp;</div><span data-i18n="habit_stretch">10 min stretch</span></div>
-          <div class="habit-item" data-habit-key="read"><div class="habit-check">&nbsp;</div><span data-i18n="habit_read">read 10 pages</span></div>
-          <div class="habit-item" data-habit-key="scroll"><div class="habit-check">&nbsp;</div><span data-i18n="habit_scroll">no late night scrolling</span></div>
+          <p style="color:var(--chrome-dim); font-size:0.85rem;">loading...</p>
         </div>
-        <div class="streak-line">⭐ <span id="habitStreakLine">0 of 4 done today</span></div>
+        <div class="streak-line">⭐ <span id="habitStreakLine">0 of 0 done today</span></div>
       </div>
 
     </div>
@@ -874,6 +875,7 @@
     }
 
     async function loadTodayMood(userId) {
+      loadMoodStrip(userId);
       const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
       const { data, error } = await sb
         .from('mood_entries')
@@ -884,6 +886,7 @@
         .limit(1);
       if (error || !data || !data.length) return;
       const entry = data[0];
+      selectedMoodIndex = entry.mood_score - 1;
       document.querySelectorAll('.mood-faces button').forEach((b, i) => {
         b.classList.toggle('selected', i === entry.mood_score - 1);
       });
@@ -893,39 +896,51 @@
       renderMascotMood(entry.mood_score);
     }
 
+    let selectedMoodIndex = null;
     document.querySelectorAll('.mood-faces button').forEach((btn, index) => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', () => {
         document.querySelectorAll('.mood-faces button').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
-
-        const { data: { session } } = await sb.auth.getSession();
-        if (!session) return;
-
-        const score = index + 1;
-        const label = moodLabels[index];
-        const { error } = await sb.from('mood_entries').insert({
-          user_id: session.user.id,
-          mood_score: score,
-          note: label,
-          song_tag: songTagInput.value.trim() || null
-        });
-        if (!error) {
-          document.querySelector('.mood-note').textContent = `logged as "${label}" just now`;
-          renderMascotMood(score);
-        }
+        selectedMoodIndex = index;
       });
     });
 
-    // save song tag on its own if edited after mood was already logged today
-    songTagInput.addEventListener('change', async () => {
+    document.getElementById('logMoodBtn').addEventListener('click', async () => {
+      const status = document.getElementById('moodSaveStatus');
+      if (selectedMoodIndex === null) { status.textContent = 'pick a face first'; return; }
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
-      const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
-      await sb.from('mood_entries')
-        .update({ song_tag: songTagInput.value.trim() || null })
-        .eq('user_id', session.user.id)
-        .gte('logged_at', startOfDay.toISOString());
+
+      status.textContent = 'saving...';
+      const score = selectedMoodIndex + 1;
+      const label = moodLabels[selectedMoodIndex];
+      const { error } = await sb.from('mood_entries').insert({
+        user_id: session.user.id,
+        mood_score: score,
+        note: label,
+        song_tag: songTagInput.value.trim() || null
+      });
+      if (error) { status.textContent = error.message; return; }
+      status.textContent = 'logged ✨';
+      document.querySelector('.mood-note').textContent = `logged as "${label}" just now`;
+      renderMascotMood(score);
+      loadMoodStrip(session.user.id);
     });
+
+    // ---- 7-day mood strip: filled = a mood was logged that day ----
+    async function loadMoodStrip(userId) {
+      const strip = document.getElementById('moodStrip');
+      if (!strip) return;
+      const start = new Date(); start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0);
+      const { data } = await sb.from('mood_entries').select('logged_at').eq('user_id', userId).gte('logged_at', start.toISOString());
+      const loggedDays = new Set((data || []).map(e => new Date(e.logged_at).toISOString().slice(0, 10)));
+      const spans = strip.querySelectorAll('span');
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(); d.setDate(d.getDate() - (6 - i));
+        const key = d.toISOString().slice(0, 10);
+        spans[i].classList.toggle('filled', loggedDays.has(key));
+      }
+    }
 
     // ---- sleep tracker wired to Supabase ----
     const bedtimeInput = document.getElementById('bedtimeInput');
@@ -1029,23 +1044,29 @@
       loadTodayExpenses(session.user.id);
     });
 
-    // ---- habit tracker wired to Supabase ----
+    // ---- habit tracker wired to Supabase (dynamic, per-user habits) ----
     async function loadTodayHabits(userId) {
       const today = new Date().toISOString().slice(0, 10);
-      const { data } = await sb.from('habit_logs').select('habit_key, done').eq('user_id', userId).eq('logged_date', today);
-      const doneKeys = new Set((data || []).filter(h => h.done).map(h => h.habit_key));
-      renderHabits(doneKeys);
-    }
+      const { data: habits } = await sb.from('habits').select('*').eq('user_id', userId).eq('show_on_dashboard', true).order('sort_order');
+      const list = document.getElementById('habitList');
 
-    function renderHabits(doneKeys) {
-      const items = document.querySelectorAll('#habitList .habit-item');
-      items.forEach(item => {
-        const isDone = doneKeys.has(item.dataset.habitKey);
-        item.classList.toggle('done', isDone);
-        item.querySelector('.habit-check').classList.toggle('done', isDone);
-        item.querySelector('.habit-check').textContent = isDone ? '✓' : '';
-      });
-      document.getElementById('habitStreakLine').textContent = `${doneKeys.size} of ${items.length} done today`;
+      if (!habits || !habits.length) {
+        list.innerHTML = `<p style="color:var(--chrome-dim); font-size:0.85rem;">no habits pinned to dashboard — <a href="habits.html" style="color:var(--lilac);">add or pick some</a></p>`;
+        document.getElementById('habitStreakLine').textContent = '0 of 0 done today';
+        return;
+      }
+
+      const habitIds = habits.map(h => h.id);
+      const { data: logs } = await sb.from('habit_logs').select('habit_id, done').in('habit_id', habitIds).eq('logged_date', today);
+      const doneSet = new Set((logs || []).filter(l => l.done).map(l => l.habit_id));
+
+      list.innerHTML = habits.map(h => `
+        <div class="habit-item ${doneSet.has(h.id) ? 'done' : ''}" data-habit-id="${h.id}">
+          <div class="habit-check ${doneSet.has(h.id) ? 'done' : ''}">${doneSet.has(h.id) ? '✓' : '&nbsp;'}</div>
+          <span>${h.icon} ${h.label}</span>
+        </div>
+      `).join('');
+      document.getElementById('habitStreakLine').textContent = `${doneSet.size} of ${habits.length} done today`;
     }
 
     document.getElementById('habitList').addEventListener('click', async (e) => {
@@ -1068,8 +1089,8 @@
 
       const today = new Date().toISOString().slice(0, 10);
       const { error } = await sb.from('habit_logs').upsert({
-        user_id: session.user.id, habit_key: item.dataset.habitKey, logged_date: today, done: nowDone
-      }, { onConflict: 'user_id,habit_key,logged_date' });
+        habit_id: item.dataset.habitId, logged_date: today, done: nowDone
+      }, { onConflict: 'habit_id,logged_date' });
       delete item.dataset.busy;
 
       if (error) {

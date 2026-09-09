@@ -55,17 +55,41 @@
   .wrap{ max-width:640px; margin:0 auto; padding:36px 24px 0; }
   .card{ background: linear-gradient(165deg, var(--bg-panel-2), var(--bg-panel)); border:1px solid var(--line);
     border-radius:24px; padding:22px; margin-bottom:16px; }
-  .habit-row-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-  .habit-row-top h3{ font-size:1rem; }
+  .card h3{ font-size:1rem; margin-bottom:16px; }
+  .habit-row-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; }
+  .habit-row-top h3{ font-size:1rem; margin-bottom:0; display:flex; align-items:center; gap:8px; }
+  .habit-actions{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
   .today-toggle{ all:unset; cursor:pointer; width:32px; height:32px; border-radius:10px;
     border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:0.9rem; }
   .today-toggle.done{ background:linear-gradient(135deg,var(--mint),var(--lilac)); border-color:transparent; }
-  .day-grid{ display:flex; gap:8px; }
+  .day-grid{ display:flex; gap:8px; margin-bottom:14px; }
   .day-cell{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
   .day-cell .label{ font-size:0.68rem; color:var(--chrome-dim); }
   .day-cell .dot{ width:22px; height:22px; border-radius:50%; background:rgba(var(--tint-rgb),0.08); }
   .day-cell .dot.done{ background:linear-gradient(135deg,var(--mint),var(--lilac)); }
+  .dash-row{ display:flex; align-items:center; justify-content:space-between; padding-top:12px; border-top:1px dashed var(--line); }
+  .dash-row span{ font-size:0.78rem; color:var(--chrome-dim); }
   .empty-note{ color:var(--chrome-dim); font-size:0.85rem; text-align:center; padding:12px 0; }
+  .icon-btn{ all:unset; cursor:pointer; color:var(--chrome-dim); font-size:1rem; width:28px; height:28px;
+    display:flex; align-items:center; justify-content:center; border-radius:50%; }
+  .icon-btn:hover{ background:rgba(var(--tint-rgb),0.1); color:var(--butter); }
+
+  .switch{ all:unset; cursor:pointer; width:38px; height:22px; border-radius:999px; background:rgba(var(--tint-rgb),0.1);
+    border:1px solid var(--line); position:relative; flex-shrink:0; }
+  .switch .knob{ position:absolute; top:1px; left:1px; width:18px; height:18px; border-radius:50%;
+    background:rgba(var(--tint-rgb),0.35); transition:transform .2s ease, background .2s ease; }
+  .switch.on{ background:linear-gradient(135deg,var(--lilac),var(--mint)); }
+  .switch.on .knob{ transform:translateX(16px); background:var(--ink); }
+
+  .add-row{ display:flex; gap:8px; }
+  .icon-select{ width:64px; padding:12px 8px; border-radius:14px; border:1px solid var(--line);
+    background:var(--bg-panel); color:var(--cloud); font-size:1.1rem; text-align:center; }
+  .text-input{ flex:1; padding:12px 16px; border-radius:14px; border:1px solid var(--line);
+    background:var(--bg-panel); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.9rem; outline:none; }
+  .btn-primary{ padding:12px 20px; border:none; border-radius:14px; cursor:pointer;
+    background:linear-gradient(135deg,var(--mint),var(--lilac)); color:var(--ink);
+    font-family:'Fredoka',sans-serif; font-weight:600; font-size:0.9rem; white-space:nowrap; }
+  .save-status{ text-align:center; font-size:0.78rem; color:var(--chrome-dim); margin-top:10px; min-height:1em; }
 </style>
 </head>
 <body>
@@ -80,6 +104,28 @@
 
   <main class="wrap">
     <h2 style="margin:24px 0;">habit tracker</h2>
+
+    <div class="card">
+      <h3>add a habit</h3>
+      <div class="add-row">
+        <select class="icon-select" id="newIcon">
+          <option value="💧">💧</option>
+          <option value="🧘">🧘</option>
+          <option value="📖">📖</option>
+          <option value="🌙">🌙</option>
+          <option value="🏃">🏃</option>
+          <option value="🥗">🥗</option>
+          <option value="💊">💊</option>
+          <option value="✍️">✍️</option>
+          <option value="🧴">🧴</option>
+          <option value="⭐">⭐</option>
+        </select>
+        <input type="text" class="text-input" id="newLabel" placeholder="e.g. drink 2L water">
+        <button class="btn-primary" id="addHabitBtn">add</button>
+      </div>
+      <p class="save-status" id="addStatus"></p>
+    </div>
+
     <div id="habitCards"><p class="empty-note">loading...</p></div>
   </main>
 
@@ -89,11 +135,11 @@
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUserId = null;
-    const habits = [
-      { key: 'water', label: 'drink 2L water', icon: '💧' },
-      { key: 'stretch', label: '10 min stretch', icon: '🧘' },
-      { key: 'read', label: 'read 10 pages', icon: '📖' },
-      { key: 'scroll', label: 'no late night scrolling', icon: '🌙' },
+    const DEFAULT_HABITS = [
+      { label: 'drink 2L water', icon: '💧' },
+      { label: '10 min stretch', icon: '🧘' },
+      { label: 'read 10 pages', icon: '📖' },
+      { label: 'no late night scrolling', icon: '🌙' },
     ];
 
     function lastNDays(n) {
@@ -108,36 +154,81 @@
     const dayLabels = days.map(d => new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2).toLowerCase());
     const today = days[days.length - 1];
 
-    async function loadAndRender() {
-      const { data } = await sb.from('habit_logs').select('habit_key, logged_date, done')
-        .eq('user_id', currentUserId).in('logged_date', days);
-      const logMap = {};
-      (data || []).forEach(l => { logMap[`${l.habit_key}_${l.logged_date}`] = l.done; });
+    async function ensureDefaultHabits() {
+      const { data: existing } = await sb.from('habits').select('id').eq('user_id', currentUserId).limit(1);
+      if (existing && existing.length) return;
+      await sb.from('habits').insert(
+        DEFAULT_HABITS.map((h, i) => ({ user_id: currentUserId, label: h.label, icon: h.icon, sort_order: i }))
+      );
+    }
 
+    async function loadAndRender() {
+      const { data: habits } = await sb.from('habits').select('*').eq('user_id', currentUserId).order('sort_order');
       const container = document.getElementById('habitCards');
+      if (!habits || !habits.length) { container.innerHTML = '<p class="empty-note">no habits yet — add one above</p>'; return; }
+
+      const habitIds = habits.map(h => h.id);
+      const { data: logs } = await sb.from('habit_logs').select('habit_id, logged_date, done').in('habit_id', habitIds).in('logged_date', days);
+      const logMap = {};
+      (logs || []).forEach(l => { logMap[`${l.habit_id}_${l.logged_date}`] = l.done; });
+
       container.innerHTML = habits.map(h => {
-        const todayDone = !!logMap[`${h.key}_${today}`];
+        const todayDone = !!logMap[`${h.id}_${today}`];
         const dayCells = days.map((d, i) => {
-          const done = !!logMap[`${h.key}_${d}`];
+          const done = !!logMap[`${h.id}_${d}`];
           return `<div class="day-cell"><span class="label">${dayLabels[i]}</span><div class="dot ${done ? 'done' : ''}"></div></div>`;
         }).join('');
-        return `<div class="card" data-habit-key="${h.key}">
+        return `<div class="card" data-habit-id="${h.id}">
           <div class="habit-row-top">
             <h3>${h.icon} ${h.label}</h3>
-            <button class="today-toggle ${todayDone ? 'done' : ''}" data-key="${h.key}">${todayDone ? '✓' : ''}</button>
+            <div class="habit-actions">
+              <button class="today-toggle ${todayDone ? 'done' : ''}" data-action="toggle-today">${todayDone ? '✓' : ''}</button>
+              <button class="icon-btn" data-action="delete">✕</button>
+            </div>
           </div>
           <div class="day-grid">${dayCells}</div>
+          <div class="dash-row">
+            <span>show on dashboard</span>
+            <button class="switch ${h.show_on_dashboard ? 'on' : ''}" data-action="toggle-dash"><span class="knob"></span></button>
+          </div>
         </div>`;
       }).join('');
     }
 
     document.getElementById('habitCards').addEventListener('click', async (e) => {
-      const btn = e.target.closest('.today-toggle');
+      const card = e.target.closest('[data-habit-id]');
+      if (!card) return;
+      const habitId = card.dataset.habitId;
+      const btn = e.target.closest('button');
       if (!btn) return;
-      const nowDone = !btn.classList.contains('done');
-      await sb.from('habit_logs').upsert({
-        user_id: currentUserId, habit_key: btn.dataset.key, logged_date: today, done: nowDone
-      }, { onConflict: 'user_id,habit_key,logged_date' });
+      const action = btn.dataset.action;
+
+      if (action === 'toggle-today') {
+        const nowDone = !btn.classList.contains('done');
+        await sb.from('habit_logs').upsert({ habit_id: habitId, logged_date: today, done: nowDone }, { onConflict: 'habit_id,logged_date' });
+        loadAndRender();
+      } else if (action === 'toggle-dash') {
+        const nowOn = !btn.classList.contains('on');
+        await sb.from('habits').update({ show_on_dashboard: nowOn }).eq('id', habitId);
+        loadAndRender();
+      } else if (action === 'delete') {
+        if (!confirm('remove this habit? its history will be deleted too.')) return;
+        await sb.from('habits').delete().eq('id', habitId);
+        loadAndRender();
+      }
+    });
+
+    document.getElementById('addHabitBtn').addEventListener('click', async () => {
+      const label = document.getElementById('newLabel').value.trim();
+      const icon = document.getElementById('newIcon').value;
+      const status = document.getElementById('addStatus');
+      if (!label) { status.textContent = 'give your habit a name first'; return; }
+      status.textContent = 'adding...';
+      const { data: existing } = await sb.from('habits').select('sort_order').eq('user_id', currentUserId).order('sort_order', { ascending: false }).limit(1);
+      const nextOrder = existing && existing.length ? existing[0].sort_order + 1 : 0;
+      const { error } = await sb.from('habits').insert({ user_id: currentUserId, label, icon, sort_order: nextOrder });
+      status.textContent = error ? error.message : 'added ✨';
+      document.getElementById('newLabel').value = '';
       loadAndRender();
     });
 
@@ -145,6 +236,7 @@
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'index.html'; return; }
       currentUserId = session.user.id;
+      await ensureDefaultHabits();
       await loadAndRender();
     }
     init();
