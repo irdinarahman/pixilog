@@ -428,13 +428,16 @@
     gap:6px;
     margin-top: 16px;
   }
-  .mood-strip span{
-    flex:1;
-    height: 26px;
+  .mood-strip-cell{ flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .mood-strip-cell .ms-label{ font-size:0.62rem; color:var(--chrome-dim); }
+  .mood-strip-cell .ms-box{
+    width:100%;
+    height: 22px;
     border-radius: 7px;
     background: rgba(var(--tint-rgb),0.06);
+    display:block;
   }
-  .mood-strip span.filled{ background: linear-gradient(180deg, var(--lilac-soft), var(--lilac)); }
+  .mood-strip-cell .ms-box.filled{ background: linear-gradient(180deg, var(--lilac-soft), var(--lilac)); }
 
   /* sleep card */
   .sleep-row{ display:flex; align-items:center; gap: 22px; }
@@ -583,6 +586,12 @@
       <input id="authEmail" type="email" placeholder="you@email.com" style="width:100%; padding:13px 18px; border-radius:999px; border:1px solid var(--line); background:var(--bg-panel-2); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.9rem; margin-bottom:12px; outline:none; box-sizing:border-box;">
       <button id="authSend" style="width:100%; padding:13px 18px; border-radius:999px; border:none; background:linear-gradient(135deg,var(--lilac),var(--mint)); color:var(--ink); font-weight:600; cursor:pointer; font-family:'Fredoka',sans-serif; font-size:0.95rem;">send magic link ✨</button>
       <p id="authStatus" style="color:var(--chrome-dim); font-size:0.78rem; margin-top:16px; min-height:1em;"></p>
+      <div style="display:flex; align-items:center; gap:10px; margin:16px 0;">
+        <div style="flex:1; height:1px; background:var(--line);"></div>
+        <span style="color:var(--chrome-dim); font-size:0.72rem;">or</span>
+        <div style="flex:1; height:1px; background:var(--line);"></div>
+      </div>
+      <button id="authGuest" style="width:100%; padding:12px 18px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--chrome-dim); font-weight:600; cursor:pointer; font-family:'Space Grotesk',sans-serif; font-size:0.85rem;">continue as guest</button>
     </div>
   </div>
 
@@ -619,8 +628,8 @@
         <div class="streak-chip">
           <div class="badge">⭐</div>
           <div>
-            <b data-i18n="streak_title">12-day streak</b>
-            <small data-i18n="streak_sub">longest yet — keep it glowing</small>
+            <b id="streakTitle">no streak yet</b>
+            <small id="streakSub">log today to start one</small>
           </div>
         </div>
         <button id="shareDayBtn" style="margin-top:14px; display:inline-flex; align-items:center; gap:8px; padding:11px 20px; border:1px solid var(--line); border-radius:999px; background:rgba(var(--tint-rgb),0.06); color:var(--cloud); font-family:'Fredoka',sans-serif; font-weight:600; font-size:0.85rem; cursor:pointer;">
@@ -688,7 +697,13 @@
           <span id="moodSaveStatus" style="font-size:0.76rem; color:var(--chrome-dim);"></span>
         </div>
         <div class="mood-strip" id="moodStrip">
-          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          <div class="mood-strip-cell"><span class="ms-label">mo</span><span class="ms-box"></span></div>
+          <div class="mood-strip-cell"><span class="ms-label">tu</span><span class="ms-box"></span></div>
+          <div class="mood-strip-cell"><span class="ms-label">we</span><span class="ms-box"></span></div>
+          <div class="mood-strip-cell"><span class="ms-label">th</span><span class="ms-box"></span></div>
+          <div class="mood-strip-cell"><span class="ms-label">fr</span><span class="ms-box"></span></div>
+          <div class="mood-strip-cell"><span class="ms-label">sa</span><span class="ms-box"></span></div>
+          <div class="mood-strip-cell"><span class="ms-label">su</span><span class="ms-box"></span></div>
         </div>
       </div>
 
@@ -814,6 +829,7 @@
     const authGate = document.getElementById('authGate');
     const authEmail = document.getElementById('authEmail');
     const authSend = document.getElementById('authSend');
+    const authGuest = document.getElementById('authGuest');
     const authStatus = document.getElementById('authStatus');
 
     authSend.addEventListener('click', async () => {
@@ -822,6 +838,12 @@
       authStatus.textContent = 'sending...';
       const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
       authStatus.textContent = error ? error.message : 'check your email for the login link!';
+    });
+
+    authGuest.addEventListener('click', async () => {
+      authStatus.textContent = 'signing you in...';
+      const { error } = await sb.auth.signInAnonymously();
+      authStatus.textContent = error ? error.message : '';
     });
 
     async function loadHeaderAvatar(userId) {
@@ -837,6 +859,7 @@
         loadTodayExpenses(session.user.id);
         loadTodayHabits(session.user.id);
         loadHeaderAvatar(session.user.id);
+        loadStreak(session.user.id);
       }
     });
 
@@ -848,6 +871,7 @@
         loadTodayExpenses(session.user.id);
         loadTodayHabits(session.user.id);
         loadHeaderAvatar(session.user.id);
+        loadStreak(session.user.id);
       }
     });
 
@@ -941,20 +965,32 @@
       document.querySelector('.mood-note').textContent = `logged as "${label}" just now`;
       renderMascotMood(score);
       loadMoodStrip(session.user.id);
+      loadStreak(session.user.id);
     });
 
-    // ---- 7-day mood strip: filled = a mood was logged that day ----
+    // ---- mood strip: fixed Mon-Sun calendar week, naturally resets when a new week starts ----
+    function getMondayOfThisWeek() {
+      const d = new Date(); d.setHours(0, 0, 0, 0);
+      const day = d.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+      const diffToMonday = day === 0 ? 6 : day - 1;
+      d.setDate(d.getDate() - diffToMonday);
+      return d;
+    }
     async function loadMoodStrip(userId) {
       const strip = document.getElementById('moodStrip');
       if (!strip) return;
-      const start = new Date(); start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0);
-      const { data } = await sb.from('mood_entries').select('logged_at').eq('user_id', userId).gte('logged_at', start.toISOString());
+      const monday = getMondayOfThisWeek();
+      const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6); sunday.setHours(23, 59, 59, 999);
+
+      const { data } = await sb.from('mood_entries').select('logged_at').eq('user_id', userId)
+        .gte('logged_at', monday.toISOString()).lte('logged_at', sunday.toISOString());
       const loggedDays = new Set((data || []).map(e => new Date(e.logged_at).toISOString().slice(0, 10)));
-      const spans = strip.querySelectorAll('span');
+
+      const boxes = strip.querySelectorAll('.ms-box');
       for (let i = 0; i < 7; i++) {
-        const d = new Date(); d.setDate(d.getDate() - (6 - i));
+        const d = new Date(monday); d.setDate(d.getDate() + i);
         const key = d.toISOString().slice(0, 10);
-        spans[i].classList.toggle('filled', loggedDays.has(key));
+        boxes[i].classList.toggle('filled', loggedDays.has(key));
       }
     }
 
@@ -1240,6 +1276,54 @@
     // you're querying real weekly aggregates from sleep_entries / expense_entries / habit_logs
     // e.g. renderTrend('sleepTrend', 7.4, 6.6, { higherIsBetter: true, suffix: '%' });
 
+
+    // ---- streak: consecutive days with at least one mood log ----
+    function longestStreak(dateSet) {
+      const sorted = [...dateSet].sort();
+      let longest = 0, current = 0, prev = null;
+      for (const d of sorted) {
+        if (prev) {
+          const diffDays = Math.round((new Date(d) - new Date(prev)) / 86400000);
+          current = diffDays === 1 ? current + 1 : 1;
+        } else {
+          current = 1;
+        }
+        longest = Math.max(longest, current);
+        prev = d;
+      }
+      return longest;
+    }
+
+    async function loadStreak(userId) {
+      const { data } = await sb.from('mood_entries').select('logged_at').eq('user_id', userId);
+      const titleEl = document.getElementById('streakTitle');
+      const subEl = document.getElementById('streakSub');
+      if (!data || !data.length) {
+        titleEl.textContent = 'no streak yet';
+        subEl.textContent = 'log today to start one';
+        return;
+      }
+      const dateSet = new Set(data.map(e => new Date(e.logged_at).toISOString().slice(0, 10)));
+
+      let cursor = new Date(); cursor.setHours(0, 0, 0, 0);
+      let dateStr = cursor.toISOString().slice(0, 10);
+      if (!dateSet.has(dateStr)) cursor.setDate(cursor.getDate() - 1);
+
+      let streak = 0;
+      while (dateSet.has(cursor.toISOString().slice(0, 10))) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+
+      const longest = longestStreak(dateSet);
+      if (streak === 0) {
+        titleEl.textContent = 'no streak yet';
+        subEl.textContent = 'log today to start one';
+      } else {
+        titleEl.textContent = `${streak}-day streak`;
+        subEl.textContent = streak >= longest ? 'longest yet — keep it glowing' : `personal best: ${longest} days`;
+      }
+    }
 
     // ---- language toggle (EN / BM) ----
     const translations = {
