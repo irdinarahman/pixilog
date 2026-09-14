@@ -623,7 +623,7 @@
     <section class="hero">
       <div>
         <div class="hero-eyebrow"><span class="pulse"></span> <span data-i18n="saved_ago">saved 4 minutes ago</span></div>
-        <h1><span data-i18n="hero_line1">hey iso, today's</span><br><span class="gradient" data-i18n="hero_line2">looking glowy</span> <span data-i18n="hero_line3">so far.</span></h1>
+        <h1><span data-i18n="hero_hey">hey</span><span id="userNameSpan"></span><span data-i18n="hero_line1">, today's</span><br><span class="gradient" data-i18n="hero_line2">looking glowy</span> <span data-i18n="hero_line3">so far.</span></h1>
         <p data-i18n="hero_sub">track your mood, sleep, spending and little habits — all in one glowy corner of the internet, just for you.</p>
         <div class="streak-chip">
           <div class="badge">⭐</div>
@@ -730,10 +730,10 @@
           </div>
           <div class="sleep-times">
             <div class="row"><span data-i18n="sleep_bedtime">bedtime</span> &nbsp;
-              <input type="time" id="bedtimeInput" style="background:transparent; border:none; border-bottom:1px solid var(--line); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.85rem; font-weight:600; width:90px;">
+              <input type="time" id="bedtimeInput" style="background:transparent; border:none; border-bottom:1px solid var(--line); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.85rem; font-weight:600; width:90px; -webkit-appearance:none; appearance:none;">
             </div>
             <div class="row"><span data-i18n="sleep_wake">wake up</span> &nbsp;
-              <input type="time" id="wakeInput" style="background:transparent; border:none; border-bottom:1px solid var(--line); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.85rem; font-weight:600; width:90px;">
+              <input type="time" id="wakeInput" style="background:transparent; border:none; border-bottom:1px solid var(--line); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.85rem; font-weight:600; width:90px; -webkit-appearance:none; appearance:none;">
             </div>
             <div class="row"><span data-i18n="sleep_quality">quality</span> &nbsp;
               <select id="qualityInput" style="background:var(--bg-panel); border:1px solid var(--line); border-radius:8px; color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.8rem; padding:3px 6px; -webkit-appearance:none; appearance:none;">
@@ -857,8 +857,10 @@
     });
 
     async function loadHeaderAvatar(userId) {
-      const { data } = await sb.from('profiles').select('avatar_emoji').eq('id', userId).single();
+      const { data } = await sb.from('profiles').select('avatar_emoji, display_name').eq('id', userId).single();
       document.getElementById('headerAvatar').textContent = (data && data.avatar_emoji) || '🌙';
+      const name = (data && data.display_name) ? data.display_name.trim() : '';
+      document.getElementById('userNameSpan').textContent = name ? ` ${name}` : '';
     }
 
     sb.auth.onAuthStateChange((_event, session) => {
@@ -1342,7 +1344,7 @@
         nav_home: "home", nav_mood: "mood", nav_expenses: "expenses", nav_habits: "habits", nav_sleep: "sleep",
         nav_spend: "spend",
         saved_ago: "your daily check-in space",
-        hero_line1: "hey, today's", hero_line2: "looking calm", hero_line3: "so far.",
+        hero_hey: "hey", hero_line1: ", today's", hero_line2: "looking calm", hero_line3: "so far.",
         hero_sub: "track your mood, sleep, spending and little habits — all in one glowy corner of the internet, just for you.",
         streak_title: "no streak yet", streak_sub: "log today to start one",
         section_checkins: "today's check-ins", section_seeall: "see full diary",
@@ -1359,7 +1361,7 @@
         nav_home: "utama", nav_mood: "mood", nav_expenses: "perbelanjaan", nav_habits: "tabiat", nav_sleep: "tidur",
         nav_spend: "belanja",
         saved_ago: "ruang check-in harian kau",
-        hero_line1: "hai, hari ni", hero_line2: "nampak tenang", hero_line3: "setakat ni.",
+        hero_hey: "hai", hero_line1: ", hari ni", hero_line2: "nampak tenang", hero_line3: "setakat ni.",
         hero_sub: "track mood, tidur, perbelanjaan dan tabiat kecil — semua dalam satu sudut glowy internet, khas untuk kau.",
         streak_title: "belum ada streak", streak_sub: "log hari ni untuk mula",
         section_checkins: "check-in hari ni", section_seeall: "lihat diari penuh",
