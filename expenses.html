@@ -142,8 +142,13 @@
             <option value="food">🍜 food</option>
             <option value="transport">🚌 transport</option>
             <option value="other">✦ other</option>
+            <option value="__custom__">➕ add new category...</option>
           </select>
         </div>
+      </div>
+      <div class="field" id="customCategoryField" style="display:none;">
+        <label class="field-label">new category name</label>
+        <input type="text" class="text-input" id="customCategoryInput" placeholder="e.g. groceries">
       </div>
       <div class="field">
         <label class="field-label">note (optional)</label>
@@ -165,9 +170,30 @@
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUserId = null;
+    const DEFAULT_CATEGORIES = ['drinks', 'food', 'transport', 'other'];
     const categoryIcons = { drinks: '🧋', food: '🍜', transport: '🚌', other: '✦' };
     const historyList = document.getElementById('historyList');
     const saveStatus = document.getElementById('saveStatus');
+    const categoryInput = document.getElementById('categoryInput');
+    const customCategoryField = document.getElementById('customCategoryField');
+    const customCategoryInput = document.getElementById('customCategoryInput');
+
+    categoryInput.addEventListener('change', () => {
+      customCategoryField.style.display = categoryInput.value === '__custom__' ? 'block' : 'none';
+    });
+
+    async function loadCustomCategories() {
+      const { data } = await sb.from('expense_entries').select('category').eq('user_id', currentUserId);
+      const used = [...new Set((data || []).map(e => e.category))].filter(c => !DEFAULT_CATEGORIES.includes(c));
+      const addOption = categoryInput.querySelector('option[value="__custom__"]');
+      used.forEach(cat => {
+        if (categoryInput.querySelector(`option[value="${CSS.escape(cat)}"]`)) return;
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = `✦ ${cat}`;
+        categoryInput.insertBefore(opt, addOption);
+      });
+    }
 
     async function loadStats() {
       const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
@@ -198,16 +224,27 @@
     document.getElementById('addBtn').addEventListener('click', async () => {
       const amount = parseFloat(document.getElementById('amountInput').value);
       if (!amount || amount <= 0) { saveStatus.textContent = 'enter a valid amount first'; return; }
+
+      let category = categoryInput.value;
+      if (category === '__custom__') {
+        category = customCategoryInput.value.trim().toLowerCase();
+        if (!category) { saveStatus.textContent = 'type a category name first'; return; }
+      }
+
       saveStatus.textContent = 'saving...';
       const { error } = await sb.from('expense_entries').insert({
         user_id: currentUserId,
         amount,
-        category: document.getElementById('categoryInput').value,
+        category,
         note: document.getElementById('noteInput').value.trim() || null
       });
       saveStatus.textContent = error ? error.message : 'added ✨';
       document.getElementById('amountInput').value = '';
       document.getElementById('noteInput').value = '';
+      customCategoryInput.value = '';
+      customCategoryField.style.display = 'none';
+      categoryInput.value = 'drinks';
+      loadCustomCategories();
       loadStats(); loadHistory();
     });
 
@@ -234,6 +271,7 @@
       currentUserId = session.user.id;
       await loadStats();
       await loadHistory();
+      await loadCustomCategories();
     }
     init();
 

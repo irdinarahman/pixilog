@@ -782,6 +782,7 @@
             <option value="food">🍜 food</option>
             <option value="transport">🚌 transport</option>
             <option value="other">✦ other</option>
+            <option value="__custom__">➕ add new...</option>
           </select>
           <button id="addExpenseBtn" style="flex:1; border:none; border-radius:10px; background:linear-gradient(135deg,var(--butter),var(--butter-soft)); color:var(--ink); font-family:'Fredoka',sans-serif; font-weight:600; font-size:0.8rem; cursor:pointer;">add</button>
         </div>
@@ -824,6 +825,15 @@
     const SUPABASE_URL = "https://pyxmuzudgzfvvkbipjln.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eG11enVkZ3pmdnZrYmlwamxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3MzgyNDEsImV4cCI6MjEwNDMxNDI0MX0.Ki5MdbzAIxbgXizf1Ao-73Q5FIGfNegPfkQmHwxmbF4";
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // always use this instead of toISOString().slice(0,10) — that pattern silently
+    // shifts dates backward by a day for any timezone ahead of UTC (e.g. Malaysia, UTC+8)
+    function localDateStr(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
 
     // ---- auth gate ----
     const authGate = document.getElementById('authGate');
@@ -984,12 +994,12 @@
 
       const { data } = await sb.from('mood_entries').select('logged_at').eq('user_id', userId)
         .gte('logged_at', monday.toISOString()).lte('logged_at', sunday.toISOString());
-      const loggedDays = new Set((data || []).map(e => new Date(e.logged_at).toISOString().slice(0, 10)));
+      const loggedDays = new Set((data || []).map(e => localDateStr(new Date(e.logged_at))));
 
       const boxes = strip.querySelectorAll('.ms-box');
       for (let i = 0; i < 7; i++) {
         const d = new Date(monday); d.setDate(d.getDate() + i);
-        const key = d.toISOString().slice(0, 10);
+        const key = localDateStr(d);
         boxes[i].classList.toggle('filled', loggedDays.has(key));
       }
     }
@@ -1019,7 +1029,7 @@
     }
 
     async function loadTodaySleep(userId) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateStr(new Date());
       const { data } = await sb.from('sleep_entries').select('*').eq('user_id', userId).eq('logged_date', today).maybeSingle();
       if (data) {
         bedtimeInput.value = data.bedtime ? data.bedtime.slice(0, 5) : '';
@@ -1034,7 +1044,7 @@
       if (!session) return;
       const status = document.getElementById('sleepSaveStatus');
       status.textContent = 'saving...';
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateStr(new Date());
       const { error } = await sb.from('sleep_entries').upsert({
         user_id: session.user.id,
         logged_date: today,
@@ -1087,6 +1097,7 @@
     }
 
     document.getElementById('addExpenseBtn').addEventListener('click', async () => {
+      if (expenseCategoryInput.value === '__custom__') { window.location.href = 'expenses.html'; return; }
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
       const amount = parseFloat(expenseAmountInput.value);
@@ -1098,7 +1109,7 @@
 
     // ---- habit tracker wired to Supabase (dynamic, per-user habits) ----
     async function loadTodayHabits(userId) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateStr(new Date());
       const { data: habits } = await sb.from('habits').select('*').eq('user_id', userId).eq('show_on_dashboard', true).order('sort_order');
       const list = document.getElementById('habitList');
 
@@ -1139,7 +1150,7 @@
       const totalCount = document.querySelectorAll('#habitList .habit-item').length;
       document.getElementById('habitStreakLine').textContent = `${doneCount} of ${totalCount} done today`;
 
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateStr(new Date());
       const { error } = await sb.from('habit_logs').upsert({
         habit_id: item.dataset.habitId, logged_date: today, done: nowDone
       }, { onConflict: 'habit_id,logged_date' });
@@ -1303,14 +1314,14 @@
         subEl.textContent = 'log today to start one';
         return;
       }
-      const dateSet = new Set(data.map(e => new Date(e.logged_at).toISOString().slice(0, 10)));
+      const dateSet = new Set(data.map(e => localDateStr(new Date(e.logged_at))));
 
       let cursor = new Date(); cursor.setHours(0, 0, 0, 0);
-      let dateStr = cursor.toISOString().slice(0, 10);
+      let dateStr = localDateStr(cursor);
       if (!dateSet.has(dateStr)) cursor.setDate(cursor.getDate() - 1);
 
       let streak = 0;
-      while (dateSet.has(cursor.toISOString().slice(0, 10))) {
+      while (dateSet.has(localDateStr(cursor))) {
         streak++;
         cursor.setDate(cursor.getDate() - 1);
       }

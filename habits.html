@@ -168,6 +168,16 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5eG11enVkZ3pmdnZrYmlwamxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3MzgyNDEsImV4cCI6MjEwNDMxNDI0MX0.Ki5MdbzAIxbgXizf1Ao-73Q5FIGfNegPfkQmHwxmbF4";
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // always use this instead of toISOString().slice(0,10) — that pattern silently
+    // shifts dates backward by a day for any timezone ahead of UTC (e.g. Malaysia, UTC+8)
+    function localDateStr(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+
     let currentUserId = null;
     const DEFAULT_HABITS = [
       { label: 'drink 2L water', icon: '💧' },
@@ -180,7 +190,7 @@
       const days = [];
       for (let i = n - 1; i >= 0; i--) {
         const d = new Date(); d.setDate(d.getDate() - i);
-        days.push(d.toISOString().slice(0, 10));
+        days.push(localDateStr(d));
       }
       return days;
     }
