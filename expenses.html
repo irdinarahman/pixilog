@@ -68,6 +68,9 @@
   .text-input{ width:100%; max-width:100%; padding:12px 16px; border-radius:14px; border:1px solid var(--line);
     background:var(--bg-panel); color:var(--cloud); font-family:'Space Grotesk',sans-serif; font-size:0.9rem; outline:none; box-sizing:border-box; min-width:0; }
   select.text-input{ -webkit-appearance:none; appearance:none; height:46px; padding:0 16px; }
+  .icon-select{ width:100%; padding:0 8px; border-radius:14px; border:1px solid var(--line);
+    background:var(--bg-panel); color:var(--cloud); font-size:1.1rem; text-align:center; text-align-last:center;
+    -webkit-appearance:none; appearance:none; height:46px; box-sizing:border-box; }
   .row-2{ display:flex; gap:12px; }
   .row-2 .field{ flex:1 1 0%; min-width:0; }
   .btn-primary{ width:100%; padding:14px; border:none; border-radius:999px; cursor:pointer;
@@ -125,7 +128,12 @@
 
     <div class="card">
       <div class="stat-row"><div><b id="todayTotal">RM 0.00</b><br><span>spent today</span></div>
-        <div style="text-align:right;"><b id="monthTotal">RM 0.00</b><br><span>spent this month</span></div></div>
+        <div style="text-align:right;"><b id="monthTotal">RM 0.00</b><br><span id="monthBudgetLabel">spent this month</span></div></div>
+      <div id="budgetBarWrap" style="margin-top:14px; display:none;">
+        <div style="height:8px; border-radius:999px; background:rgba(var(--tint-rgb),0.1); overflow:hidden;">
+          <div id="budgetBar" style="height:100%; width:0%; background:linear-gradient(90deg,var(--mint),var(--lilac)); transition:width .3s ease;"></div>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -147,8 +155,27 @@
         </div>
       </div>
       <div class="field" id="customCategoryField" style="display:none;">
-        <label class="field-label">new category name</label>
-        <input type="text" class="text-input" id="customCategoryInput" placeholder="e.g. groceries">
+        <div class="row-2">
+          <div class="field">
+            <label class="field-label">pick an emoji</label>
+            <select class="icon-select" id="customCategoryIcon">
+              <option value="🛒">🛒</option>
+              <option value="🏠">🏠</option>
+              <option value="💊">💊</option>
+              <option value="🎮">🎮</option>
+              <option value="👕">👕</option>
+              <option value="📚">📚</option>
+              <option value="🐾">🐾</option>
+              <option value="🎁">🎁</option>
+              <option value="💇">💇</option>
+              <option value="✦">✦</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">category name</label>
+            <input type="text" class="text-input" id="customCategoryInput" placeholder="e.g. groceries">
+          </div>
+        </div>
       </div>
       <div class="field">
         <label class="field-label">note (optional)</label>
@@ -170,29 +197,36 @@
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUserId = null;
-    const DEFAULT_CATEGORIES = ['drinks', 'food', 'transport', 'other'];
-    const categoryIcons = { drinks: '🧋', food: '🍜', transport: '🚌', other: '✦' };
+    let monthlyBudget = null;
+    const DEFAULT_CATEGORIES = { drinks: '🧋', food: '🍜', transport: '🚌', other: '✦' };
+    let categoryIcons = { ...DEFAULT_CATEGORIES };
     const historyList = document.getElementById('historyList');
     const saveStatus = document.getElementById('saveStatus');
     const categoryInput = document.getElementById('categoryInput');
     const customCategoryField = document.getElementById('customCategoryField');
     const customCategoryInput = document.getElementById('customCategoryInput');
+    const customCategoryIcon = document.getElementById('customCategoryIcon');
 
     categoryInput.addEventListener('change', () => {
       customCategoryField.style.display = categoryInput.value === '__custom__' ? 'block' : 'none';
     });
 
     async function loadCustomCategories() {
-      const { data } = await sb.from('expense_entries').select('category').eq('user_id', currentUserId);
-      const used = [...new Set((data || []).map(e => e.category))].filter(c => !DEFAULT_CATEGORIES.includes(c));
+      const { data } = await sb.from('expense_categories').select('name, icon').eq('user_id', currentUserId);
       const addOption = categoryInput.querySelector('option[value="__custom__"]');
-      used.forEach(cat => {
-        if (categoryInput.querySelector(`option[value="${CSS.escape(cat)}"]`)) return;
+      (data || []).forEach(cat => {
+        categoryIcons[cat.name] = cat.icon;
+        if (categoryInput.querySelector(`option[value="${CSS.escape(cat.name)}"]`)) return;
         const opt = document.createElement('option');
-        opt.value = cat;
-        opt.textContent = `✦ ${cat}`;
+        opt.value = cat.name;
+        opt.textContent = `${cat.icon} ${cat.name}`;
         categoryInput.insertBefore(opt, addOption);
       });
+    }
+
+    async function loadBudget() {
+      const { data } = await sb.from('profiles').select('monthly_budget').eq('id', currentUserId).single();
+      monthlyBudget = data && data.monthly_budget != null ? Number(data.monthly_budget) : null;
     }
 
     async function loadStats() {
@@ -206,6 +240,20 @@
       const monthTotal = (monthData || []).reduce((s, e) => s + Number(e.amount), 0);
       document.getElementById('todayTotal').textContent = `RM ${todayTotal.toFixed(2)}`;
       document.getElementById('monthTotal').textContent = `RM ${monthTotal.toFixed(2)}`;
+
+      const budgetBarWrap = document.getElementById('budgetBarWrap');
+      const budgetLabel = document.getElementById('monthBudgetLabel');
+      if (monthlyBudget && monthlyBudget > 0) {
+        const pct = Math.min(100, (monthTotal / monthlyBudget) * 100);
+        budgetLabel.textContent = `of RM ${monthlyBudget.toFixed(0)} this month`;
+        budgetBarWrap.style.display = 'block';
+        const bar = document.getElementById('budgetBar');
+        bar.style.width = pct + '%';
+        bar.style.background = pct >= 100 ? 'var(--butter)' : 'linear-gradient(90deg,var(--mint),var(--lilac))';
+      } else {
+        budgetLabel.textContent = 'spent this month';
+        budgetBarWrap.style.display = 'none';
+      }
     }
 
     async function loadHistory() {
@@ -229,6 +277,13 @@
       if (category === '__custom__') {
         category = customCategoryInput.value.trim().toLowerCase();
         if (!category) { saveStatus.textContent = 'type a category name first'; return; }
+        const icon = customCategoryIcon.value;
+        const { error: catError } = await sb.from('expense_categories').upsert(
+          { user_id: currentUserId, name: category, icon },
+          { onConflict: 'user_id,name' }
+        );
+        if (catError) { saveStatus.textContent = catError.message; return; }
+        categoryIcons[category] = icon;
       }
 
       saveStatus.textContent = 'saving...';
@@ -269,6 +324,7 @@
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'index.html'; return; }
       currentUserId = session.user.id;
+      await loadBudget();
       await loadStats();
       await loadHistory();
       await loadCustomCategories();

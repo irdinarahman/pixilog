@@ -218,9 +218,13 @@
         <label class="field-label">display name</label>
         <input type="text" class="text-input" id="displayName" placeholder="what should we call you?">
       </div>
-      <div class="field" style="margin-bottom:0;">
+      <div class="field">
         <label class="field-label">email</label>
         <input type="text" class="text-input" id="userEmail" disabled>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label class="field-label">monthly spending budget (RM)</label>
+        <input type="number" class="text-input" id="monthlyBudget" min="0" step="10" placeholder="e.g. 500">
       </div>
     </div>
 
@@ -258,12 +262,13 @@
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUserId = null;
-    let profileState = { display_name: '', avatar_emoji: '🌙', notify_mood: true, notify_sleep: true, notify_expense: false, notify_habit: true };
+    let profileState = { display_name: '', avatar_emoji: '🌙', monthly_budget: null, notify_mood: true, notify_sleep: true, notify_expense: false, notify_habit: true };
 
     const avatarPreview = document.getElementById('avatarPreview');
     const avatarGrid = document.getElementById('avatarGrid');
     const displayNameInput = document.getElementById('displayName');
     const userEmailInput = document.getElementById('userEmail');
+    const monthlyBudgetInput = document.getElementById('monthlyBudget');
     const saveBtn = document.getElementById('saveBtn');
     const saveStatus = document.getElementById('saveStatus');
     const signOutBtn = document.getElementById('signOutBtn');
@@ -299,13 +304,14 @@
       const { data: { session } } = await sb.auth.getSession();
       if(!session){ window.location.href = 'index.html'; return; }
       currentUserId = session.user.id;
-      userEmailInput.value = session.user.email;
+      userEmailInput.value = session.user.email || 'guest account (no email)';
 
       const { data, error } = await sb.from('profiles').select('*').eq('id', currentUserId).single();
       if(data){
         profileState = { ...profileState, ...data };
       }
       displayNameInput.value = profileState.display_name || '';
+      monthlyBudgetInput.value = profileState.monthly_budget != null ? profileState.monthly_budget : '';
       renderAvatarGrid();
       renderToggles();
     }
@@ -352,6 +358,7 @@
         id: currentUserId,
         display_name: displayNameInput.value.trim(),
         avatar_emoji: profileState.avatar_emoji,
+        monthly_budget: monthlyBudgetInput.value ? Number(monthlyBudgetInput.value) : null,
         notify_mood: profileState.notify_mood,
         notify_sleep: profileState.notify_sleep,
         notify_expense: profileState.notify_expense,

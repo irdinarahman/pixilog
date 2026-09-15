@@ -768,7 +768,7 @@
           </div>
           <div class="more-dots">⋯</div>
         </div>
-        <div class="expense-amount"><b id="expenseTotal">RM 0.00</b><span data-i18n="expense_budget">of RM 60 daily budget</span></div>
+        <div class="expense-amount"><b id="expenseTotal">RM 0.00</b><span id="expenseBudgetLabel">spent today</span></div>
         <div class="bars" id="expenseBars">
           <i style="height:6%"></i><i style="height:6%"></i><i style="height:6%"></i><i style="height:6%"></i><i style="height:6%"></i><i style="height:6%"></i><i style="height:6%"></i>
         </div>
@@ -863,11 +863,13 @@
       document.getElementById('userNameSpan').textContent = name ? ` ${name}` : '';
     }
 
-    sb.auth.onAuthStateChange((_event, session) => {
+    sb.auth.onAuthStateChange(async (_event, session) => {
       authGate.style.display = session ? 'none' : 'flex';
       if (session) {
         loadTodayMood(session.user.id);
         loadTodaySleep(session.user.id);
+        await loadMonthlyBudget(session.user.id);
+        await loadDashboardCategories(session.user.id);
         loadTodayExpenses(session.user.id);
         loadTodayHabits(session.user.id);
         loadHeaderAvatar(session.user.id);
@@ -875,11 +877,13 @@
       }
     });
 
-    sb.auth.getSession().then(({ data: { session } }) => {
+    sb.auth.getSession().then(async ({ data: { session } }) => {
       authGate.style.display = session ? 'none' : 'flex';
       if (session) {
         loadTodayMood(session.user.id);
         loadTodaySleep(session.user.id);
+        await loadMonthlyBudget(session.user.id);
+        await loadDashboardCategories(session.user.id);
         loadTodayExpenses(session.user.id);
         loadTodayHabits(session.user.id);
         loadHeaderAvatar(session.user.id);
@@ -1064,7 +1068,27 @@
     const expenseChipsEl = document.getElementById('expenseChips');
     const expenseAmountInput = document.getElementById('expenseAmount');
     const expenseCategoryInput = document.getElementById('expenseCategory');
-    const categoryIcons = { drinks: '🧋', food: '🍜', transport: '🚌', other: '✦' };
+    const expenseBudgetLabelEl = document.getElementById('expenseBudgetLabel');
+    let categoryIcons = { drinks: '🧋', food: '🍜', transport: '🚌', other: '✦' };
+    let dashboardMonthlyBudget = null;
+
+    async function loadDashboardCategories(userId) {
+      const { data } = await sb.from('expense_categories').select('name, icon').eq('user_id', userId);
+      const addOption = expenseCategoryInput.querySelector('option[value="__custom__"]');
+      (data || []).forEach(cat => {
+        categoryIcons[cat.name] = cat.icon;
+        if (expenseCategoryInput.querySelector(`option[value="${CSS.escape(cat.name)}"]`)) return;
+        const opt = document.createElement('option');
+        opt.value = cat.name;
+        opt.textContent = `${cat.icon} ${cat.name}`;
+        expenseCategoryInput.insertBefore(opt, addOption);
+      });
+    }
+
+    async function loadMonthlyBudget(userId) {
+      const { data } = await sb.from('profiles').select('monthly_budget').eq('id', userId).single();
+      dashboardMonthlyBudget = data && data.monthly_budget != null ? Number(data.monthly_budget) : null;
+    }
 
     async function loadTodayExpenses(userId) {
       const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
@@ -1078,6 +1102,15 @@
         expenseChipsEl.innerHTML = '<span>no expenses logged yet</span>';
       }
       loadWeeklyExpenseBars(userId);
+
+      const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+      const { data: monthData } = await sb.from('expense_entries').select('amount').eq('user_id', userId).gte('logged_at', startOfMonth.toISOString());
+      const monthTotal = (monthData || []).reduce((s, e) => s + Number(e.amount), 0);
+      if (dashboardMonthlyBudget && dashboardMonthlyBudget > 0) {
+        expenseBudgetLabelEl.textContent = `· RM ${monthTotal.toFixed(0)} of RM ${dashboardMonthlyBudget.toFixed(0)} this month`;
+      } else {
+        expenseBudgetLabelEl.textContent = 'spent today';
+      }
     }
 
     async function loadWeeklyExpenseBars(userId) {
@@ -1164,6 +1197,8 @@
         check.classList.toggle('done', !nowDone);
         check.textContent = !nowDone ? '✓' : '';
         loadTodayHabits(session.user.id);
+      } else {
+        loadStreak(session.user.id);
       }
     });
 
@@ -1308,15 +1343,27 @@
     }
 
     async function loadStreak(userId) {
-      const { data } = await sb.from('mood_entries').select('logged_at').eq('user_id', userId);
+      const { data: moodData } = await sb.from('mood_entries').select('logged_at').eq('user_id', userId);
+      const { data: userHabits } = await sb.from('habits').select('id').eq('user_id', userId);
+      const habitIds = (userHabits || []).map(h => h.id);
+      let habitLogData = [];
+      if (habitIds.length) {
+        const { data } = await sb.from('habit_logs').select('logged_date, done').in('habit_id', habitIds).eq('done', true);
+        habitLogData = data || [];
+      }
+
       const titleEl = document.getElementById('streakTitle');
       const subEl = document.getElementById('streakSub');
-      if (!data || !data.length) {
+
+      const dateSet = new Set();
+      (moodData || []).forEach(e => dateSet.add(localDateStr(new Date(e.logged_at))));
+      habitLogData.forEach(l => dateSet.add(l.logged_date));
+
+      if (!dateSet.size) {
         titleEl.textContent = 'no streak yet';
         subEl.textContent = 'log today to start one';
         return;
       }
-      const dateSet = new Set(data.map(e => localDateStr(new Date(e.logged_at))));
 
       let cursor = new Date(); cursor.setHours(0, 0, 0, 0);
       let dateStr = localDateStr(cursor);
