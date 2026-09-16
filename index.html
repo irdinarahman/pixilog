@@ -663,7 +663,7 @@
 
     <div class="section-head">
       <h2 data-i18n="section_checkins">today's check-ins</h2>
-      <a href="#" data-i18n="section_seeall">see full diary</a>
+      <a href="diary.html" data-i18n="section_seeall">see full diary</a>
     </div>
 
     <div class="bento">
@@ -1071,6 +1071,10 @@
     const expenseBudgetLabelEl = document.getElementById('expenseBudgetLabel');
     let categoryIcons = { drinks: '🧋', food: '🍜', transport: '🚌', other: '✦' };
     let dashboardMonthlyBudget = null;
+
+    expenseCategoryInput.addEventListener('change', () => {
+      if (expenseCategoryInput.value === '__custom__') window.location.href = 'expenses.html';
+    });
 
     async function loadDashboardCategories(userId) {
       const { data } = await sb.from('expense_categories').select('name, icon').eq('user_id', userId);

@@ -325,9 +325,9 @@
       if (!session) { window.location.href = 'index.html'; return; }
       currentUserId = session.user.id;
       await loadBudget();
+      await loadCustomCategories();
       await loadStats();
       await loadHistory();
-      await loadCustomCategories();
     }
     init();
 

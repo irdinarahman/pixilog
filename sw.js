@@ -1,4 +1,4 @@
-const CACHE_NAME = "pixilog-v3";
+const CACHE_NAME = "pixilog-v4";
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const ASSETS_TO_CACHE = [
   "./sleep.html",
   "./expenses.html",
   "./habits.html",
+  "./diary.html",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png"
